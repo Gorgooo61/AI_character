@@ -3,3 +3,6 @@ __pycache__/
 models/
 downloader.py
 *.log
+lora/
+vtube_emotion_params/
+vb_cable.py
