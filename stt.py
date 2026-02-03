@@ -3,16 +3,18 @@ import time
 from RealtimeSTT import AudioToTextRecorder
 from config import stt_config_realtime, stt_config_batch, stt_models
 import logging
+from signals import Signals
 
 class SpeechRecognizer:
-    def __init__(self, input_queue: queue.Queue):
+    def __init__(self, input_queue, signals):
         self.input_queue = input_queue
+        self.signals = signals
         self.active = False
         self.recorder = None
 
-    def _on_text(self, text: str):
+    def _on_text(self, text):
         """Callback for recognized text."""
-        text = text.strip()
+        text = (text or "").strip()
         if text:
             payload = {
                 "timestamp": time.time(),
@@ -20,12 +22,15 @@ class SpeechRecognizer:
                 "text": text
             }
             self.input_queue.put(payload)
+            self.signals.new_q = True
             print(f"[STT] Recognized: {text}")
 
     def on_recording_start(self):
+        self.signals.user_talking = True
         print("[STT] Recording started")
 
     def on_recording_stop(self):
+        self.signals.user_talking = False
         print("[STT] Recording stopped")
 
     def start_realtime(self):
@@ -70,7 +75,7 @@ class SpeechRecognizer:
             "post_speech_silence_duration": 0.4,
             "min_length_of_recording": 0,
             "min_gap_between_recordings": 0.2,
-            "model": stt_models["large"],
+            "model": stt_models["tiny_fp16"], #or use sst_config_batch["model"] for base whisper
             "compute_type": "auto",
             "device": stt_config_batch["device"],
             "on_recording_start": self.on_recording_start,
@@ -93,4 +98,5 @@ class SpeechRecognizer:
         self.active = False
         if self.recorder:
             self.recorder.stop()
+        self.signals.user_talking = False
         print("[STT] Stopped")
